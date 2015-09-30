@@ -1,4 +1,5 @@
 function makeStateful(type) {
+	console.log("Making %s stateful", type.name);
 	Object.defineProperties(type.prototype, {
 		__states: {
 			value: {},
@@ -6,9 +7,29 @@ function makeStateful(type) {
 			writeable: false,
 			configurable: false
 		},
+		__stateful: {
+			value: true,
+			configurable: false,
+			writeable: false,
+			enumerable: false
+		},
 		goToState: {
 			value: function(stateName) {
-				this.__state = this.__states[stateName];
+				if(this.leaveState)
+					this.leaveState();
+
+				if(stateName) {
+					var targetState = this.__states[stateName];
+					if(targetState)
+						this.__state = targetState;
+					else
+						throw new Error("%s can't transition to non-existent state %s", type.name, stateName);
+				}
+				else
+					this.__state = null;
+
+				if(this.enterState)
+					this.enterState();
 			},
 			enumerable: false,
 			configurable: false,
@@ -17,29 +38,26 @@ function makeStateful(type) {
 	});
 }
 
-function addState(type, stateDef) {
-	var state;
+function addState(type, name, stateDef, base) {
+	if(!type.prototype.__stateful)
+		makeStateful(type);
 
-	if(!('name' in stateDef))
-		throw new Error("Anonymous states are not supported.");
-
-	if('base' in stateDef)
-		state = Object.create(type.prototype.__states[stateDef.base]);
-	else
-		state = {};
-
-	for(var key in stateDef) {
-		if(key == 'base' || key == 'name')
-			continue;
-		if(stateDef[key] instanceof Function) {
-			state[key] = stateDef[key];
-			makeVirtual(type, key);
-		}
-		else
-			throw new Error("States must only contain functions");
+	var baseState = null;
+	if(base) {
+		baseState = type.prototype.__states[base];
+		if(!baseState)
+			throw new Error("Error defining %s's state %s. Base state %s does not exist.",
+				type.name, name, base);
 	}
 
-	type.prototype.__states[stateDef.name] = state;
+	var state = Object.create(baseState);
+
+	for(var key in stateDef) {
+		state[key] = stateDef[key];
+		makeVirtual(type, key);
+	}
+
+	type.prototype.__states[name] = state;
 }
 
 function makeVirtual(type, functionName) {
