@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+	<head>
+		<script src="../fsm.js"> </script>
+	</head>
+	<body>
+		<script>
+
+			function FormController(formElement) {
+				this.formEl = formElement;
+
+				formElement.addEventListener('submit', function(submitEvent) {
+					submitEvent.preventDefault();
+
+					this.submit && this.submit();
+				}.bind(this));
+			};
+
+			FormController.prototype.submit = function() {
+				console.log("SUBMIT!");
+
+				setTimeout(function() {
+					this.gotResponse && this.gotResponse();
+				}.bind(this), 2000);
+
+				this.goToState('submitting');
+			};
+
+			addState(FormController, 'submitting', {
+				enterState: function() {
+					this.formEl.querySelector('button').disabled = true;
+				},
+				leaveState: function() {
+					this.formEl.querySelector('button').disabled = false;
+				},
+				submit: function() {
+					alert("This form is already submitting.");
+				},
+				gotResponse: function() {
+					console.log("Got response");
+					this.goToState(null);
+				}
+			});
+		</script>
+
+		<form>
+			<label>
+				<input name="name" />
+			</label>
+
+			<button> Submit </button>
+		</form>
+
+		<script>
+			loginForm = new FormController(document.querySelector('form'));
+		</script>
+	</body>
+</html>
